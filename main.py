@@ -1,4 +1,6 @@
-from flask import escape
+from reverso_api.context import ReversoContextAPI
+from flask import jsonify
+
 
 def hello_world(request):
     """HTTP Cloud Function.
@@ -10,13 +12,27 @@ def hello_world(request):
         Response object using `make_response`
         <https://flask.palletsprojects.com/en/1.1.x/api/#flask.make_response>.
     """
-    request_json = request.get_json(silent=True)
-    request_args = request.args
 
-    if request_json and 'name' in request_json:
-        name = request_json['name']
-    elif request_args and 'name' in request_args:
-        name = request_args['name']
+    request_args = request.args
+    requested_parameters = ['source_lang', 'target_lang', 'text']
+
+    if request_args and all([x in request_args for x in requested_parameters]):
+        api = ReversoContextAPI(
+            request_args['text'],
+            '',
+            request_args['source_lang'],
+            request_args['target_lang'],
+        )
+        rep = []
+        for _, translation, frequency, part_of_speech, _ \
+                in api.get_translations():
+            elt = {
+                'translation': translation,
+                'frequency': frequency,
+                'part_of_speech': part_of_speech,
+            }
+            rep.append(elt)
+        return jsonify(rep)
     else:
-        name = 'World'
-    return 'Hello {}!'.format(escape(name))
+        return ("Request should provide the following get parameters : %s"
+                % ", ".join(requested_parameters)), 400
